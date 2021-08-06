@@ -16,6 +16,10 @@ type Logger interface {
 // Cache can GetAndLoad items
 type Cache interface {
 	GetAndLoad(key string, value interface{}, loader func() (interface{}, error)) error
+	Get(key string, value interface{}) error
+	// right now uses caches default expire. Might want to add one with override in future
+	Set(key string, value interface{}) error
+	// todo: no context?!?! Delete(context context.Context, ket string) error
 }
 
 type cache struct {
@@ -30,6 +34,25 @@ type cache struct {
 func New(backend Storage, expiration time.Duration, ignoreSetErrors bool, log Logger) Cache {
 	return &cache{backend: backend, group: &singleflight.Group{}, expiration: expiration, log: log, ignoreSetErrors: ignoreSetErrors}
 }
+
+func (c *cache) Set(key string, value interface{}) (err error){
+	return c.backend.Set(key, value, c.expiration)
+}
+
+func (c *cache) Get(key string, value interface{}) (err error){
+	// if its in the cache return it
+	err = c.backend.Get(key, value)
+	if err == nil {
+		return nil
+	}
+	return err
+}
+
+// todo: no context?!?!func (c *cache) Delete(context context.Context, key string) (err error) {
+	// todo: fix me
+	// todo: no context?!?!	err = c.backend.Set(key, nil, time.Microsecond);
+	// todo: no context?!?!	return err
+	// todo: no context?!?!}
 
 // GetAndLoad will fetch the value from the cache, if it is missing it will load it into cache and return it.
 // Concurrent calls to GetAndLoad for the same key will wait for the initial call to load the object
